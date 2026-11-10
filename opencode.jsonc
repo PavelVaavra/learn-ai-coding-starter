@@ -5,7 +5,7 @@
     {
       "action": "shell",
       "resource": "*",
-      "effect": "ask",
+      "effect": "allow",
     },
     {
       "action": "run_slop",
