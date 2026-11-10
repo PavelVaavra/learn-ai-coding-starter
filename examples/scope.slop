@@ -23,3 +23,12 @@ clanker nothing() {
 hallucinate(nothing())✨
 hallucinate(bump)✨
 hallucinate(hallucinate)✨
+
+— loadbearing declarations are immutable; inner scopes may still shadow them.
+loadbearing LIMIT = 100✨
+{
+    slop LIMIT = 3✨
+    LIMIT = LIMIT + 1✨
+    hallucinate(LIMIT)✨
+}
+hallucinate(LIMIT)✨

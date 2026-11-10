@@ -34,6 +34,12 @@ CASES = [
         "expected '=' after variable name, an initializer is required, found '✨'",
     ),
     (
+        "loadbearing LIMIT = 1✨\nLIMIT = 2✨",
+        "runtime",
+        2,
+        "cannot assign to loadbearing 'LIMIT'",
+    ),
+    (
         "vibe ✅ {\n    hallucinate(“open”)✨\n",
         "syntax",
         3,

@@ -78,6 +78,47 @@ hallucinate(x)✨"""
     assert run(source) == "2\n"
 
 
+def test_loadbearing_is_readable_and_slop_stays_mutable():
+    source = """loadbearing LIMIT = 100✨
+slop score = 10✨
+score = score + 1✨
+hallucinate(LIMIT)✨
+hallucinate(score)✨"""
+    assert run(source) == "100\n11\n"
+
+
+def test_loadbearing_reassignment_is_a_runtime_error():
+    assert fails("loadbearing LIMIT = 100✨\nLIMIT = 200✨") == (
+        "SlopLang runtime error at line 2: cannot assign to loadbearing 'LIMIT'"
+    )
+
+
+def test_inner_scope_can_shadow_loadbearing_with_mutable_variable():
+    source = """loadbearing LIMIT = 100✨
+{
+    slop LIMIT = 3✨
+    LIMIT = LIMIT + 1✨
+    hallucinate(LIMIT)✨
+}
+hallucinate(LIMIT)✨"""
+    assert run(source) == "4\n100\n"
+
+
+def test_loadbearing_is_immutable_inside_a_clanker():
+    source = """clanker bump() {
+    loadbearing LIMIT = 1✨
+    LIMIT = 2✨
+}
+bump()✨"""
+    assert fails(source) == "SlopLang runtime error at line 3: cannot assign to loadbearing 'LIMIT'"
+
+
+def test_loadbearing_cannot_be_redeclared_in_the_same_scope():
+    assert fails("loadbearing LIMIT = 1✨\nloadbearing LIMIT = 2✨") == (
+        "SlopLang runtime error at line 2: 'LIMIT' is already declared in this scope"
+    )
+
+
 def test_loop_body_is_a_fresh_scope_each_iteration():
     source = """slop i = 0✨
 ralph i < 3 {
