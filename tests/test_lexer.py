@@ -81,6 +81,8 @@ def test_string_escape_sequences():
         ("a & b", 1, "unexpected character '&', did you mean '&&'?"),
         ("a | b", 1, "unexpected character '|', did you mean '||'?"),
         ("a ?", 1, "unexpected character '?'"),
+        ("— a comment\n@", 2, "unexpected character '@'"),
+        ("— a comment\n\n@", 3, "unexpected character '@'"),
     ],
 )
 def test_lexical_errors(source: str, line: int, message: str):
@@ -89,3 +91,18 @@ def test_lexical_errors(source: str, line: int, message: str):
     assert info.value.line == line
     assert info.value.message == message
     assert str(info.value) == f"SlopLang lexical error at line {line}: {message}"
+
+
+def test_comment_tracks_line_of_following_token():
+    # Regression: consuming a comment's trailing newline didn't advance the line,
+    # so errors on the next line were reported on the comment's line.
+    with pytest.raises(LexicalError) as info:
+        tokenize("— a comment\n@")
+    assert info.value.line == 2
+    assert info.value.message == "unexpected character '@'"
+
+
+def test_comment_advances_line_for_eof_token():
+    tokens = tokenize("— a comment\n")
+    assert tokens[-1].type is TokenType.EOF
+    assert tokens[-1].line == 2
