@@ -33,6 +33,12 @@ uv run ruff check
 uv run ty check
 ```
 
+To run only the comparison tests:
+
+```bash
+uv run pytest tests/test_comparisons.py
+```
+
 The `run_slop` tool (`.opencode/plugins/run-slop.ts`) runs a `.slop` file with the
 interpreter; prefer it over shelling out when it is available.
 
