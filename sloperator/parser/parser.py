@@ -23,7 +23,7 @@ from sloperator.parser.ast import (
 
 
 def parse(tokens: list[Token]) -> Program:
-    return Parser(tokens).parse()
+    return Parser(tokens).program()
 
 
 class Parser:
@@ -32,7 +32,7 @@ class Parser:
         self.current = 0
         self.function_depth = 0
 
-    def parse(self) -> Program:
+    def program(self) -> Program:
         statements: Program = []
         while not self.at_end():
             statements.append(self.top_level())
@@ -46,13 +46,7 @@ class Parser:
     def function_decl(self) -> FunctionDecl:
         name = self.expect(TokenType.IDENTIFIER, "expected a clanker name after 'clanker'")
         self.expect(TokenType.LEFT_PAREN, "expected '(' after clanker name")
-        params: list[Token] = []
-        if not self.check(TokenType.RIGHT_PAREN):
-            params.append(self.expect(TokenType.IDENTIFIER, "expected a parameter name"))
-            while self.match(TokenType.COMMA):
-                params.append(
-                    self.expect(TokenType.IDENTIFIER, "expected a parameter name after ','")
-                )
+        params = self.parameters()
         self.expect(TokenType.RIGHT_PAREN, "expected ')' after parameters")
 
         seen: set[str] = set()
@@ -66,12 +60,22 @@ class Parser:
         self.function_depth -= 1
         return FunctionDecl(name, tuple(params), body)
 
+    def parameters(self) -> list[Token]:
+        params: list[Token] = []
+        if not self.check(TokenType.RIGHT_PAREN):
+            params.append(self.expect(TokenType.IDENTIFIER, "expected a parameter name"))
+            while self.match(TokenType.COMMA):
+                params.append(
+                    self.expect(TokenType.IDENTIFIER, "expected a parameter name after ','")
+                )
+        return params
+
     def declaration(self) -> Stmt:
         if self.match(TokenType.SLOP, TokenType.LOADBEARING):
-            return self.var_decl(self.previous())
+            return self.variable_decl(self.previous())
         return self.statement()
 
-    def var_decl(self, keyword: Token) -> VarDecl:
+    def variable_decl(self, keyword: Token) -> VarDecl:
         name = self.expect(
             TokenType.IDENTIFIER, f"expected a variable name after '{keyword.lexeme}'"
         )
@@ -88,16 +92,14 @@ class Parser:
         if self.match(TokenType.VIBE):
             return self.if_stmt()
         if self.match(TokenType.RALPH):
-            return self.while_stmt()
+            return self.loop_stmt()
         if self.match(TokenType.SHIP):
-            return self.ship_stmt()
+            return self.return_stmt()
         if self.check(TokenType.LEFT_BRACE):
             return self.block("expected '{'")
         if self.check(TokenType.IDENTIFIER) and self.peek_next().type is TokenType.EQUAL:
             return self.assign_stmt()
-        expression = self.expression()
-        self.terminator("expression")
-        return ExprStmt(expression)
+        return self.expression_stmt()
 
     def if_stmt(self) -> If:
         condition = self.expression()
@@ -107,12 +109,12 @@ class Parser:
             else_branch = self.block("expected '{' after nah")
         return If(condition, then_branch, else_branch)
 
-    def while_stmt(self) -> While:
+    def loop_stmt(self) -> While:
         condition = self.expression()
         body = self.block("expected '{' after ralph condition")
         return While(condition, body)
 
-    def ship_stmt(self) -> Ship:
+    def return_stmt(self) -> Ship:
         keyword = self.previous()
         if self.function_depth == 0:
             raise SlopSyntaxError(keyword.line, "ship is only allowed inside a clanker")
@@ -134,6 +136,11 @@ class Parser:
             statements.append(self.declaration())
         self.expect(TokenType.RIGHT_BRACE, "expected '}' to close block")
         return Block(tuple(statements))
+
+    def expression_stmt(self) -> ExprStmt:
+        expression = self.expression()
+        self.terminator("expression")
+        return ExprStmt(expression)
 
     def terminator(self, what: str) -> None:
         self.expect(TokenType.SPARKLES, f"expected ✨ after {what}")
@@ -175,9 +182,6 @@ class Parser:
 
     def factor(self) -> Expr:
         expr = self.unary()
-        return self.factor_tail(expr)
-
-    def factor_tail(self, expr: Expr) -> Expr:
         while self.match(TokenType.STAR, TokenType.SLASH):
             expr = Binary(expr, self.previous(), self.unary())
         return expr
@@ -191,14 +195,18 @@ class Parser:
         expr = self.primary()
         while self.match(TokenType.LEFT_PAREN):
             paren = self.previous()
-            arguments: list[Expr] = []
-            if not self.check(TokenType.RIGHT_PAREN):
-                arguments.append(self.expression())
-                while self.match(TokenType.COMMA):
-                    arguments.append(self.expression())
+            arguments = self.arguments()
             self.expect(TokenType.RIGHT_PAREN, "expected ')' after arguments")
             expr = Call(expr, paren, tuple(arguments))
         return expr
+
+    def arguments(self) -> list[Expr]:
+        arguments: list[Expr] = []
+        if not self.check(TokenType.RIGHT_PAREN):
+            arguments.append(self.expression())
+            while self.match(TokenType.COMMA):
+                arguments.append(self.expression())
+        return arguments
 
     def primary(self) -> Expr:
         token = self.advance()
